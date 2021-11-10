@@ -1,0 +1,16 @@
+[package]
+name = "ggez-assets_manager"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+hot-reloading = ["assets_manager/hot-reloading"]
+
+[dependencies]
+#assets_manager = {version = "0.7", default-features = false, features = ["zip", "image"]}
+assets_manager = {git = "https://github.com/a1phyr/assets_manager/", rev = "02769b4", default-features = false, features = ["zip", "image"]}
+ggez = "0.7"
+
+directories = "3.0"
+image = {version = "0.23", default-features = false}
+parking_lot = "0.11"
