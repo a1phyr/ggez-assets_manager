@@ -5,7 +5,7 @@ pub mod source;
 
 use assets::GgezAsset;
 
-pub use assets_manager::{Asset, Compound, DirHandle, Handle};
+pub use assets_manager::{Asset, Compound, DirHandle, Handle, ReloadWatcher};
 use std::io;
 
 pub type AssetCache = assets_manager::AssetCache<source::FileSystem>;
@@ -27,6 +27,10 @@ pub trait AssetCacheExt: seal::Sealed + Sized {
         T: GgezAsset;
 
     fn ggez_contains<T>(&self, id: &str) -> bool
+    where
+        T: GgezAsset;
+
+    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
     where
         T: GgezAsset;
 }
@@ -67,6 +71,17 @@ impl AssetCacheExt for AssetCache {
             T::contains(self, id)
         } else {
             T::contains_fast(self, id)
+        }
+    }
+
+    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
+    where
+        T: GgezAsset,
+    {
+        if cfg!(feature = "hot-reloading") {
+            T::reload_watcher(self, id)
+        } else {
+            self.ggez_contains::<T>(id).then(ReloadWatcher::default)
         }
     }
 }

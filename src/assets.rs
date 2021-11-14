@@ -1,9 +1,11 @@
 use crate::source::Source;
 
-use assets_manager::{Asset, BoxedError, asset::{NotHotReloaded, Storable}, loader};
+use assets_manager::{
+    asset::{NotHotReloaded, Storable},
+    loader, Asset, BoxedError, ReloadWatcher,
+};
 use parking_lot::Mutex;
 use std::{borrow::Cow, sync::Arc};
-
 
 #[cold]
 fn convert_error(err: assets_manager::Error) -> ggez::GameError {
@@ -110,18 +112,20 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
         Self::get_cached(cache, context, id)
     }
 
-    fn contains<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
+    }
+
+    fn reload_watcher<'a, S: Source + ?Sized>(
+        cache: &'a assets_manager::AssetCache<S>,
+        id: &str,
+    ) -> Option<ReloadWatcher<'a>> {
+        let repr = cache.get_cached::<Self::MidRepr>(id)?;
+        Some(repr.reload_watcher())
     }
 }
 
@@ -173,10 +177,7 @@ impl GgezAsset for ggez::graphics::Image {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         default_contains_fast::<Self, S>(cache, id)
     }
 }
@@ -279,17 +280,11 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(handle.copied().0)
     }
 
-    fn contains<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         cache.contains::<FontId>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         cache.contains::<GgezValue<Self>>(id)
     }
 }
@@ -335,10 +330,7 @@ impl GgezAsset for ggez::audio::SoundData {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
-        id: &str,
-    ) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
         default_contains_fast::<Self, _>(cache, id)
     }
 }
