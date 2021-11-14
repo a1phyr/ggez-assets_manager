@@ -5,19 +5,22 @@ pub mod source;
 
 use assets::GgezAsset;
 
-pub use assets_manager::{Asset, Compound, DirHandle, Handle, ReloadWatcher};
+pub use assets_manager::{Asset, AssetCache, Compound, DirHandle, Handle, ReloadWatcher};
 use std::io;
 
-pub type AssetCache = assets_manager::AssetCache<source::FileSystem>;
+pub type GgezAssetCache = assets_manager::AssetCache<source::FileSystem>;
 
 mod seal {
     pub trait Sealed {}
-    impl Sealed for super::AssetCache {}
+    impl<S: crate::source::Source + ?Sized> Sealed for crate::AssetCache<S> {}
 }
 
-pub trait AssetCacheExt: seal::Sealed + Sized {
-    fn new(game_id: &str, author: &str) -> io::Result<Self>;
+pub fn new_asset_cache(game_id: &str, author: &str) -> io::Result<AssetCache<source::FileSystem>> {
+    let fs = source::FileSystem::new(game_id, author)?;
+    Ok(AssetCache::with_source(fs))
+}
 
+pub trait AssetCacheExt: seal::Sealed {
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset;
@@ -35,12 +38,7 @@ pub trait AssetCacheExt: seal::Sealed + Sized {
         T: GgezAsset;
 }
 
-impl AssetCacheExt for AssetCache {
-    fn new(game_id: &str, author: &str) -> io::Result<Self> {
-        let fs = source::FileSystem::new(game_id, author)?;
-        Ok(Self::with_source(fs))
-    }
-
+impl<S: source::Source + ?Sized> AssetCacheExt for AssetCache<S> {
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset,

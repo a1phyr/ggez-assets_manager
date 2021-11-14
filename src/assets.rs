@@ -2,7 +2,7 @@ use crate::source::Source;
 
 use assets_manager::{
     asset::{NotHotReloaded, Storable},
-    loader, Asset, BoxedError, ReloadWatcher,
+    loader, Asset, AssetCache, BoxedError, ReloadWatcher,
 };
 use parking_lot::Mutex;
 use std::{borrow::Cow, sync::Arc};
@@ -36,7 +36,7 @@ impl<T: Clone> Clone for GgezValue<T> {
 }
 
 fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &assets_manager::AssetCache<S>,
+    cache: &AssetCache<S>,
     context: &mut ggez::Context,
     id: &str,
 ) -> ggez::GameResult<T> {
@@ -50,7 +50,7 @@ fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
 }
 
 fn default_get_cached_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &assets_manager::AssetCache<S>,
+    cache: &AssetCache<S>,
     _context: &mut ggez::Context,
     id: &str,
 ) -> ggez::GameResult<T> {
@@ -61,7 +61,7 @@ fn default_get_cached_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
 }
 
 fn default_contains_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &assets_manager::AssetCache<S>,
+    cache: &AssetCache<S>,
     id: &str,
 ) -> bool {
     cache.contains::<GgezValue<T>>(id)
@@ -77,7 +77,7 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
     }
 
     fn load<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -86,7 +86,7 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
     }
 
     fn load_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -94,7 +94,7 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
     }
 
     fn get_cached<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -105,23 +105,23 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
     }
 
     fn get_cached_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         Self::get_cached(cache, context, id)
     }
 
-    fn contains<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
     }
 
     fn reload_watcher<'a, S: Source + ?Sized>(
-        cache: &'a assets_manager::AssetCache<S>,
+        cache: &'a AssetCache<S>,
         id: &str,
     ) -> Option<ReloadWatcher<'a>> {
         let repr = cache.get_cached::<Self::MidRepr>(id)?;
@@ -162,7 +162,7 @@ impl GgezAsset for ggez::graphics::Image {
     }
 
     fn load_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -170,14 +170,14 @@ impl GgezAsset for ggez::graphics::Image {
     }
 
     fn get_cached_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         default_contains_fast::<Self, S>(cache, id)
     }
 }
@@ -208,7 +208,7 @@ impl GgezAsset for ggez::graphics::Font {
     }
 
     fn load<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -233,7 +233,7 @@ impl GgezAsset for ggez::graphics::Font {
     }
 
     fn load_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -250,7 +250,7 @@ impl GgezAsset for ggez::graphics::Font {
     }
 
     fn get_cached<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -270,7 +270,7 @@ impl GgezAsset for ggez::graphics::Font {
     }
 
     fn get_cached_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         _context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -280,11 +280,11 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(handle.copied().0)
     }
 
-    fn contains<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         cache.contains::<FontId>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         cache.contains::<GgezValue<Self>>(id)
     }
 }
@@ -315,7 +315,7 @@ impl GgezAsset for ggez::audio::SoundData {
     }
 
     fn load_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -323,14 +323,14 @@ impl GgezAsset for ggez::audio::SoundData {
     }
 
     fn get_cached_fast<S: Source + ?Sized>(
-        cache: &assets_manager::AssetCache<S>,
+        cache: &AssetCache<S>,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &assets_manager::AssetCache<S>, id: &str) -> bool {
+    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
         default_contains_fast::<Self, _>(cache, id)
     }
 }
