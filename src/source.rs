@@ -2,9 +2,13 @@ use std::{borrow::Cow, fs, io, sync::Arc};
 
 #[cfg(feature = "hot-reloading")]
 use assets_manager::hot_reloading;
-pub use assets_manager::source::Source;
-use assets_manager::source::{self, DirEntry};
+use assets_manager::source::{self, DirEntry, Source};
 
+/// A [`Source`] using `ggez`' paths to read from the filesystem.
+///
+/// See [`ggez::filesystem`] for more details.
+///
+/// When hot-reloading is activated, changes to `"resources.zip"` are ignored.
 #[derive(Debug, Clone)]
 pub struct FileSystem {
     resources: source::FileSystem,
@@ -13,6 +17,10 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
+    /// Creates a new `FileSystem`.
+    ///
+    /// `game_id` and `author` parameters should be the same as thoses given to
+    /// [`ggez::ContextBuilder::new`].
     pub fn new(game_id: &str, author: &str) -> io::Result<Self> {
         let resources = source::FileSystem::new("resources")?;
         let zip = Arc::new(source::Zip::open("resources.zip")?);

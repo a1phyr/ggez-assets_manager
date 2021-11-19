@@ -1,44 +1,77 @@
+//! This crate provide integration of [`assets_manager`] for [`ggez`].
+
 #![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
-pub mod assets;
-pub mod source;
+mod assets;
+mod source;
 
-use assets::GgezAsset;
-
-pub use assets_manager::{Asset, AssetCache, Compound, DirHandle, Handle, ReloadWatcher};
 use std::io;
 
-pub type GgezAssetCache = assets_manager::AssetCache<source::FileSystem>;
+pub use ::assets_manager::{AssetCache, ReloadWatcher};
+pub use source::FileSystem;
+
+/// An `AssetCache` for use with `ggez`.
+pub type GgezAssetCache = assets_manager::AssetCache<FileSystem>;
+
+/// Re-export of `assets_manager`
+pub mod assets_manager {
+    pub use assets_manager::*;
+}
 
 mod seal {
     pub trait Sealed {}
-    impl<S: crate::source::Source + ?Sized> Sealed for crate::AssetCache<S> {}
+
+    impl<S: assets_manager::source::Source + ?Sized> Sealed for assets_manager::AssetCache<S> {}
 }
 
-pub fn new_asset_cache(game_id: &str, author: &str) -> io::Result<AssetCache<source::FileSystem>> {
-    let fs = source::FileSystem::new(game_id, author)?;
+/// Creates a new `GgezAssetCache`.
+///
+/// `game_id` and `author` parameters should be the same as thoses given to
+/// [`ggez::ContextBuilder::new`].
+pub fn new_asset_cache(game_id: &str, author: &str) -> io::Result<GgezAssetCache> {
+    let fs = FileSystem::new(game_id, author)?;
     Ok(AssetCache::with_source(fs))
 }
 
+/// Types that can be used with [`AssetCacheExt`].
+///
+/// This trait cannot be implemented outside this crate.
+pub trait GgezAsset: assets::GgezAsset {}
+
+impl GgezAsset for ggez::audio::SoundData {}
+impl GgezAsset for ggez::audio::Source {}
+impl GgezAsset for ggez::audio::SpatialSource {}
+impl GgezAsset for ggez::graphics::Font {}
+impl GgezAsset for ggez::graphics::Image {}
+
+/// An extension trait for `AssetCache`.
+///
+/// This enables to easily use types for `ggez`.
 pub trait AssetCacheExt: seal::Sealed {
+    /// Gets an asset from the cache, and loads it from the source (usually the
+    /// filesystem) if it was not found.
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset;
 
+    /// Gets an asset from the cache and returns an errors if it was not found.
     fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset;
 
+    /// Returns `true` if an asset is present in the cache.
     fn ggez_contains<T>(&self, id: &str) -> bool
     where
         T: GgezAsset;
 
+    /// Returns a `ReloadWatcher` to watch changes of an asset.
     fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
     where
         T: GgezAsset;
 }
 
-impl<S: source::Source + ?Sized> AssetCacheExt for AssetCache<S> {
+impl<S: assets_manager::source::Source + ?Sized> AssetCacheExt for AssetCache<S> {
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset,

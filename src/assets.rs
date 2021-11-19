@@ -1,8 +1,8 @@
-use crate::source::Source;
-
 use assets_manager::{
     asset::{NotHotReloaded, Storable},
-    loader, Asset, AssetCache, BoxedError, ReloadWatcher,
+    loader,
+    source::Source,
+    Asset, AssetCache, BoxedError, ReloadWatcher,
 };
 use parking_lot::Mutex;
 use std::{borrow::Cow, sync::Arc};
