@@ -4,11 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
+default = ["ahash"]
+
+ahash = ["assets_manager/ahash"]
 hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
-#assets_manager = {version = "0.7", default-features = false, features = ["zip", "image"]}
-assets_manager = {git = "https://github.com/a1phyr/assets_manager/", rev = "ce91419", default-features = false, features = ["zip", "image"]}
+#assets_manager = {version = "0.7", default-features = false, features = ["parking_lot", "zip", "image"]}
+assets_manager = {git = "https://github.com/a1phyr/assets_manager/", rev = "ce91419", default-features = false, features = ["parking_lot", "zip", "image"]}
 ggez = "0.7"
 
 directories = "3.0"
