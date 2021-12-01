@@ -11,9 +11,13 @@ use assets_manager::source::{self, DirEntry, Source};
 /// When hot-reloading is activated, changes to `"resources.zip"` are ignored.
 #[derive(Debug, Clone)]
 pub struct FileSystem {
-    resources: source::FileSystem,
-    zip: Arc<source::Zip<fs::File>>,
-    config: source::FileSystem,
+    resources: Option<source::FileSystem>,
+    zip: Option<Arc<source::Zip<fs::File>>>,
+    config: Option<source::FileSystem>,
+}
+
+fn no_valid_source_error() -> io::Error {
+    io::Error::new(io::ErrorKind::Other, "Cannot find a valid source")
 }
 
 impl FileSystem {
@@ -21,57 +25,78 @@ impl FileSystem {
     ///
     /// `game_id` and `author` parameters should be the same as thoses given to
     /// [`ggez::ContextBuilder::new`].
-    pub fn new(game_id: &str, author: &str) -> io::Result<Self> {
-        let resources = source::FileSystem::new("resources")?;
-        let zip = Arc::new(source::Zip::open("resources.zip")?);
+    pub fn new(game_id: &str, author: &str) -> Self {
+        let resources = source::FileSystem::new("resources").ok();
+        let zip = source::Zip::open("resources.zip").ok().map(Arc::new);
 
-        let project_dir = directories::ProjectDirs::from("", author, game_id).ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "could not find home directory")
-        })?;
-        let config = source::FileSystem::new(project_dir.data_local_dir())?;
+        let config = directories::ProjectDirs::from("", author, game_id)
+            .and_then(|project_dir| source::FileSystem::new(project_dir.data_local_dir()).ok());
 
-        Ok(Self {
+        Self {
             resources,
             zip,
             config,
-        })
+        }
     }
 }
 
 impl Source for FileSystem {
     fn read(&self, id: &str, ext: &str) -> io::Result<Cow<[u8]>> {
-        match self.resources.read(id, ext) {
-            Err(_) => (),
-            content => return content,
-        };
-        match self.zip.read(id, ext) {
-            Err(_) => (),
-            content => return content,
-        };
-        self.config.read(id, ext)
+        let mut err = None;
+
+        if let Some(source) = &self.resources {
+            match source.read(id, ext) {
+                Err(e) => err = Some(e),
+                content => return content,
+            };
+        }
+        if let Some(source) = &self.resources {
+            match source.read(id, ext) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
+        }
+        if let Some(source) = &self.resources {
+            match source.read(id, ext) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
+        }
+
+        Err(err.unwrap_or_else(no_valid_source_error))
     }
 
     fn read_dir(&self, id: &str, f: &mut dyn FnMut(DirEntry)) -> io::Result<()> {
-        let mut had_err = true;
+        let mut err = None;
 
-        if self.resources.read_dir(id, f).is_ok() {
-            had_err = false;
+        if let Some(source) = &self.resources {
+            match source.read_dir(id, f) {
+                Err(e) => err = Some(e),
+                content => return content,
+            };
+        }
+        if let Some(source) = &self.resources {
+            match source.read_dir(id, f) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
+        }
+        if let Some(source) = &self.resources {
+            match source.read_dir(id, f) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
         }
 
-        if self.zip.read_dir(id, f).is_ok() {
-            had_err = false;
-        }
-
-        let err = self.resources.read_dir(id, f);
-        if had_err {
-            Ok(())
-        } else {
-            err
-        }
+        Err(err.unwrap_or_else(no_valid_source_error))
     }
 
     fn exists(&self, entry: DirEntry) -> bool {
-        self.resources.exists(entry) || self.zip.exists(entry) || self.config.exists(entry)
+        fn exists<S: Source>(s: &Option<S>, entry: DirEntry) -> bool {
+            s.as_ref().map_or(false, |s| s.exists(entry))
+        }
+
+        exists(&self.resources, entry) || exists(&self.zip, entry) || exists(&self.config, entry)
     }
 
     #[cfg(feature = "hot-reloading")]
@@ -79,8 +104,12 @@ impl Source for FileSystem {
         &self,
     ) -> Result<Option<hot_reloading::HotReloader>, assets_manager::BoxedError> {
         let mut watcher = hot_reloading::FsWatcherBuilder::new()?;
-        watcher.watch(self.resources.root().to_owned())?;
-        watcher.watch(self.config.root().to_owned())?;
+        if let Some(res) = &self.resources {
+            watcher.watch(res.root().to_owned())?;
+        }
+        if let Some(res) = &self.config {
+            watcher.watch(res.root().to_owned())?;
+        }
         let config = watcher.build();
         Ok(Some(hot_reloading::HotReloader::start(
             config,

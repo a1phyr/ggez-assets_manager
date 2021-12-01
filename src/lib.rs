@@ -6,8 +6,6 @@
 mod assets;
 mod source;
 
-use std::io;
-
 pub use ::assets_manager::{AssetCache, ReloadWatcher};
 pub use source::FileSystem;
 
@@ -29,9 +27,8 @@ mod seal {
 ///
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
-pub fn new_asset_cache(game_id: &str, author: &str) -> io::Result<GgezAssetCache> {
-    let fs = FileSystem::new(game_id, author)?;
-    Ok(AssetCache::with_source(fs))
+pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
+    AssetCache::with_source(FileSystem::new(game_id, author))
 }
 
 /// Types that can be used with [`AssetCacheExt`].
