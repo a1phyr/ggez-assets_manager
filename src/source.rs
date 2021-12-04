@@ -10,7 +10,7 @@ use assets_manager::source::{self, DirEntry, Source};
 ///
 /// When hot-reloading is activated, changes to `"resources.zip"` are ignored.
 #[derive(Debug, Clone)]
-pub struct FileSystem {
+pub struct GgezFileSystem {
     resources: Option<source::FileSystem>,
     zip: Option<Arc<source::Zip<fs::File>>>,
     config: Option<source::FileSystem>,
@@ -20,7 +20,7 @@ fn no_valid_source_error() -> io::Error {
     io::Error::new(io::ErrorKind::Other, "Cannot find a valid source")
 }
 
-impl FileSystem {
+impl GgezFileSystem {
     /// Creates a new `FileSystem`.
     ///
     /// `game_id` and `author` parameters should be the same as thoses given to
@@ -40,7 +40,7 @@ impl FileSystem {
     }
 }
 
-impl Source for FileSystem {
+impl Source for GgezFileSystem {
     fn read(&self, id: &str, ext: &str) -> io::Result<Cow<[u8]>> {
         let mut err = None;
 
@@ -103,6 +103,10 @@ impl Source for FileSystem {
     fn configure_hot_reloading(
         &self,
     ) -> Result<Option<hot_reloading::HotReloader>, assets_manager::BoxedError> {
+        if self.resources.is_none() && self.config.is_none() {
+            return Ok(None);
+        }
+
         let mut watcher = hot_reloading::FsWatcherBuilder::new()?;
         if let Some(res) = &self.resources {
             watcher.watch(res.root().to_owned())?;

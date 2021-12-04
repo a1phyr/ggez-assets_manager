@@ -7,10 +7,10 @@ mod assets;
 mod source;
 
 pub use ::assets_manager::{AssetCache, ReloadWatcher};
-pub use source::FileSystem;
+pub use source::GgezFileSystem;
 
 /// An `AssetCache` for use with `ggez`.
-pub type GgezAssetCache = assets_manager::AssetCache<FileSystem>;
+pub type GgezAssetCache = assets_manager::AssetCache<GgezFileSystem>;
 
 /// Re-export of `assets_manager`
 pub mod assets_manager {
@@ -28,7 +28,7 @@ mod seal {
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
 pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
-    AssetCache::with_source(FileSystem::new(game_id, author))
+    AssetCache::with_source(GgezFileSystem::new(game_id, author))
 }
 
 /// Types that can be used with [`AssetCacheExt`].
