@@ -27,6 +27,7 @@ mod seal {
 ///
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
+#[must_use]
 pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
     AssetCache::with_source(GgezFileSystem::new(game_id, author))
 }

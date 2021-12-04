@@ -20,20 +20,10 @@ fn not_found_error() -> ggez::GameError {
     ggez::GameError::ResourceNotFound(String::from("resource not found in cache"), Vec::new())
 }
 
-#[derive(Debug, Copy)]
-pub struct GgezValue<T>(pub T);
+#[derive(Debug, Clone, Copy)]
+struct GgezValue<T>(T);
 
 impl<T: Send + Sync + 'static> Storable for GgezValue<T> {}
-
-impl<T: Clone> Clone for GgezValue<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-
-    fn clone_from(&mut self, source: &Self) {
-        self.0.clone_from(&source.0)
-    }
-}
 
 fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
     cache: &AssetCache<S>,
@@ -45,7 +35,7 @@ fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
     }
 
     let repr = cache.load_owned::<T::MidRepr>(id).map_err(convert_error)?;
-    let this = T::from_repr(context, &repr)?;
+    let this = T::from_owned_repr(context, repr)?;
     Ok(cache.get_or_insert(id, GgezValue(this)).cloned().0)
 }
 
@@ -186,6 +176,20 @@ pub struct FontAsset(Vec<u8>);
 
 struct FontId(Mutex<ggez::graphics::Font>);
 
+impl FontId {
+    fn new(font: ggez::graphics::Font) -> Self {
+        Self(parking_lot::Mutex::new(font))
+    }
+
+    fn get_font(&self) -> ggez::graphics::Font {
+        *self.0.lock()
+    }
+
+    fn set_font(&self, font: ggez::graphics::Font) {
+        *self.0.lock() = font;
+    }
+}
+
 impl Storable for FontId {}
 impl NotHotReloaded for FontId {}
 
@@ -218,7 +222,7 @@ impl GgezAsset for ggez::graphics::Font {
         if let Some(handle) = handle {
             if !handle.reloaded_global() {
                 let font_id = cache.get_cached::<FontId>(id).ok_or_else(not_found_error)?;
-                return Ok(*font_id.get().0.lock());
+                return Ok(font_id.get().get_font());
             }
         }
 
@@ -227,8 +231,8 @@ impl GgezAsset for ggez::graphics::Font {
             None => cache.load::<FontAsset>(id).map_err(convert_error)?,
         };
         let font = Self::from_repr(context, &handle.read())?;
-        let font_handle = cache.get_or_insert(id, FontId(Mutex::new(font)));
-        *font_handle.get().0.lock() = font;
+        let font_handle = cache.get_or_insert(id, FontId::new(font));
+        font_handle.get().set_font(font);
         Ok(font)
     }
 
@@ -260,12 +264,12 @@ impl GgezAsset for ggez::graphics::Font {
 
         if !handle.reloaded_global() {
             let font_id = cache.get_cached::<FontId>(id).ok_or_else(not_found_error)?;
-            return Ok(*font_id.get().0.lock());
+            return Ok(font_id.get().get_font());
         }
 
         let font = Self::from_repr(context, &handle.read())?;
-        let font_handle = cache.get_or_insert(id, FontId(Mutex::new(font)));
-        *font_handle.get().0.lock() = font;
+        let font_handle = cache.get_or_insert(id, FontId::new(font));
+        font_handle.get().set_font(font);
         Ok(font)
     }
 
