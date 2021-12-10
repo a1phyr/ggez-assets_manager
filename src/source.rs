@@ -1,8 +1,9 @@
 use std::{borrow::Cow, fs, io, sync::Arc};
 
-#[cfg(feature = "hot-reloading")]
-use assets_manager::hot_reloading;
-use assets_manager::source::{self, DirEntry, Source};
+use assets_manager::{
+    hot_reloading::{DynUpdateSender, EventSender, FsWatcherBuilder},
+    source::{self, DirEntry, Source},
+};
 
 /// A [`Source`] using `ggez`' paths to read from the filesystem.
 ///
@@ -99,25 +100,26 @@ impl Source for GgezFileSystem {
         exists(&self.resources, entry) || exists(&self.zip, entry) || exists(&self.config, entry)
     }
 
-    #[cfg(feature = "hot-reloading")]
+    fn make_source(&self) -> Option<Box<dyn Source + Send>> {
+        // Disable hot-reloading if there is no asset directory
+        if self.resources.is_none() && self.config.is_none() {
+            None
+        } else {
+            Some(Box::new(self.clone()))
+        }
+    }
+
     fn configure_hot_reloading(
         &self,
-    ) -> Result<Option<hot_reloading::HotReloader>, assets_manager::BoxedError> {
-        if self.resources.is_none() && self.config.is_none() {
-            return Ok(None);
-        }
-
-        let mut watcher = hot_reloading::FsWatcherBuilder::new()?;
+        events: EventSender,
+    ) -> Result<DynUpdateSender, assets_manager::BoxedError> {
+        let mut watcher = FsWatcherBuilder::new()?;
         if let Some(res) = &self.resources {
             watcher.watch(res.root().to_owned())?;
         }
         if let Some(res) = &self.config {
             watcher.watch(res.root().to_owned())?;
         }
-        let config = watcher.build();
-        Ok(Some(hot_reloading::HotReloader::start(
-            config,
-            self.clone(),
-        )))
+        Ok(watcher.build(events))
     }
 }

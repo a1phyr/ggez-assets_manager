@@ -5,19 +5,25 @@ use assets_manager::{
     Asset, AssetCache, BoxedError, ReloadWatcher,
 };
 use parking_lot::Mutex;
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, io};
 
 #[cold]
 fn convert_error(err: assets_manager::Error) -> ggez::GameError {
-    match err {
-        assets_manager::Error::Io(err) => ggez::GameError::IOError(Arc::new(err)),
-        err => ggez::GameError::ResourceLoadError(err.to_string()),
+    match err.reason().downcast_ref::<io::Error>() {
+        Some(io_err) if io_err.kind() == io::ErrorKind::NotFound => {
+            ggez::GameError::ResourceNotFound(err.id().to_owned(), Vec::new())
+        }
+        _ => ggez::GameError::ResourceLoadError(format!(
+            "Asset loading error for \"{}\" : {:?}",
+            err.id(),
+            err.reason()
+        )),
     }
 }
 
 #[cold]
 fn not_found_error() -> ggez::GameError {
-    ggez::GameError::ResourceNotFound(String::from("resource not found in cache"), Vec::new())
+    ggez::GameError::CustomError(String::from("resource not found in cache"))
 }
 
 #[derive(Debug, Clone, Copy)]
