@@ -46,6 +46,11 @@ impl GgezAsset for ggez::graphics::Image {}
 /// An extension trait for `AssetCache`.
 ///
 /// This enables to easily use types for `ggez`.
+///
+/// Note that unlike other [`AssetCache`] methods that return a [`Handle`],
+/// these methods directly return the requested type.
+///
+/// [`Handle`]: assets_manager::Handle
 pub trait AssetCacheExt: seal::Sealed {
     /// Gets an asset from the cache, and loads it from the source (usually the
     /// filesystem) if it was not found.
@@ -64,6 +69,8 @@ pub trait AssetCacheExt: seal::Sealed {
         T: GgezAsset;
 
     /// Returns a `ReloadWatcher` to watch changes of an asset.
+    ///
+    /// Returns `None` if the asset is not in the cache.
     fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
     where
         T: GgezAsset;
