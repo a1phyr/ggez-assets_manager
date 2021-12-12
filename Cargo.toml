@@ -3,6 +3,16 @@ name = "ggez-assets_manager"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.56"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description= "`assets_manager` integration for `ggez`"
+
+repository = "https://github.com/a1phyr/ggez_assets_manager"
+documentation = "https://docs.rs/ggez_assets_manager"
+
+categories = ["caching", "filesystem", "game-development"]
+keywords = ["assets", "cache", "ggez", "hot-reloading", "resources"]
+
 
 [features]
 default = ["ahash"]
@@ -11,8 +21,7 @@ ahash = ["assets_manager/ahash"]
 hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
-#assets_manager = {version = "0.7", default-features = false, features = ["parking_lot", "zip", "image"]}
-assets_manager = {git = "https://github.com/a1phyr/assets_manager/", rev = "1948347", default-features = false, features = ["parking_lot", "zip", "image"]}
+assets_manager = {version = "0.7", default-features = false, features = ["parking_lot", "zip", "image"]}
 ggez = "0.7"
 
 directories = "3.0"
