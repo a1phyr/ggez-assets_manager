@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fs, io, sync::Arc};
+use std::{borrow::Cow, io, sync::Arc};
 
 use assets_manager::{
     hot_reloading::{DynUpdateSender, EventSender, FsWatcherBuilder},
@@ -13,7 +13,7 @@ use assets_manager::{
 #[derive(Debug, Clone)]
 pub struct GgezFileSystem {
     resources: Option<source::FileSystem>,
-    zip: Option<Arc<source::Zip<fs::File>>>,
+    zip: Option<Arc<source::Zip>>,
     config: Option<source::FileSystem>,
 }
 

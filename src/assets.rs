@@ -1,8 +1,6 @@
 use assets_manager::{
     asset::{NotHotReloaded, Storable},
-    loader,
-    source::Source,
-    Asset, AssetCache, BoxedError, ReloadWatcher,
+    loader, AnyCache, Asset, BoxedError, ReloadWatcher,
 };
 use parking_lot::Mutex;
 use std::{borrow::Cow, io};
@@ -13,11 +11,7 @@ fn convert_error(err: assets_manager::Error) -> ggez::GameError {
         Some(io_err) if io_err.kind() == io::ErrorKind::NotFound => {
             ggez::GameError::ResourceNotFound(err.id().to_owned(), Vec::new())
         }
-        _ => ggez::GameError::ResourceLoadError(format!(
-            "Asset loading error for \"{}\" : {:?}",
-            err.id(),
-            err.reason()
-        )),
+        _ => ggez::GameError::ResourceLoadError(format!("\"{}\": {:?}", err.id(), err.reason())),
     }
 }
 
@@ -31,8 +25,8 @@ struct GgezValue<T>(T);
 
 impl<T: Send + Sync + 'static> Storable for GgezValue<T> {}
 
-fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &AssetCache<S>,
+fn default_load_fast<T: GgezAsset + Clone>(
+    cache: AnyCache,
     context: &mut ggez::Context,
     id: &str,
 ) -> ggez::GameResult<T> {
@@ -45,8 +39,8 @@ fn default_load_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
     Ok(cache.get_or_insert(id, GgezValue(this)).cloned().0)
 }
 
-fn default_get_cached_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &AssetCache<S>,
+fn default_get_cached_fast<T: GgezAsset + Clone>(
+    cache: AnyCache,
     _context: &mut ggez::Context,
     id: &str,
 ) -> ggez::GameResult<T> {
@@ -56,10 +50,7 @@ fn default_get_cached_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
     Ok(handle.cloned().0)
 }
 
-fn default_contains_fast<T: GgezAsset + Clone, S: Source + ?Sized>(
-    cache: &AssetCache<S>,
-    id: &str,
-) -> bool {
+fn default_contains_fast<T: GgezAsset + Clone>(cache: AnyCache, id: &str) -> bool {
     cache.contains::<GgezValue<T>>(id)
 }
 
@@ -72,25 +63,17 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
         Self::from_repr(context, &repr)
     }
 
-    fn load<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         let repr = cache.load::<Self::MidRepr>(id).map_err(convert_error)?;
         Self::from_repr(context, &repr.read())
     }
 
-    fn load_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         Self::load(cache, context, id)
     }
 
-    fn get_cached<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached(
+        cache: AnyCache,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -100,26 +83,23 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
         Self::from_repr(context, &repr.read())
     }
 
-    fn get_cached_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached_fast(
+        cache: AnyCache,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         Self::get_cached(cache, context, id)
     }
 
-    fn contains<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
+    fn contains(cache: AnyCache, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
+    fn contains_fast(cache: AnyCache, id: &str) -> bool {
         cache.contains::<Self::MidRepr>(id)
     }
 
-    fn reload_watcher<'a, S: Source + ?Sized>(
-        cache: &'a AssetCache<S>,
-        id: &str,
-    ) -> Option<ReloadWatcher<'a>> {
+    fn reload_watcher<'a>(cache: AnyCache<'a>, id: &str) -> Option<ReloadWatcher<'a>> {
         let repr = cache.get_cached::<Self::MidRepr>(id)?;
         Some(repr.reload_watcher())
     }
@@ -157,24 +137,20 @@ impl GgezAsset for ggez::graphics::Image {
         Self::from_rgba8(context, width, height, &image.0)
     }
 
-    fn load_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         default_load_fast(cache, context, id)
     }
 
-    fn get_cached_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached_fast(
+        cache: AnyCache,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
-        default_contains_fast::<Self, S>(cache, id)
+    fn contains_fast(cache: AnyCache, id: &str) -> bool {
+        default_contains_fast::<Self>(cache, id)
     }
 }
 
@@ -217,11 +193,7 @@ impl GgezAsset for ggez::graphics::Font {
         Self::new_glyph_font_bytes(context, &font.0)
     }
 
-    fn load<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         let handle = cache.get_cached::<FontAsset>(id);
 
         // `ggez` already caches fonts so we avoid calling `new_glyph_font_bytes`
@@ -242,11 +214,7 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(font)
     }
 
-    fn load_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         let handle = cache.get_cached::<GgezValue<Self>>(id);
 
         if let Some(handle) = handle {
@@ -259,8 +227,8 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(font)
     }
 
-    fn get_cached<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached(
+        cache: AnyCache,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -279,8 +247,8 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(font)
     }
 
-    fn get_cached_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached_fast(
+        cache: AnyCache,
         _context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
@@ -290,11 +258,11 @@ impl GgezAsset for ggez::graphics::Font {
         Ok(handle.copied().0)
     }
 
-    fn contains<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
+    fn contains(cache: AnyCache, id: &str) -> bool {
         cache.contains::<FontId>(id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
+    fn contains_fast(cache: AnyCache, id: &str) -> bool {
         cache.contains::<GgezValue<Self>>(id)
     }
 }
@@ -324,24 +292,20 @@ impl GgezAsset for ggez::audio::SoundData {
         Ok(sound.0)
     }
 
-    fn load_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
-        context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
+    fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         default_load_fast(cache, context, id)
     }
 
-    fn get_cached_fast<S: Source + ?Sized>(
-        cache: &AssetCache<S>,
+    fn get_cached_fast(
+        cache: AnyCache,
         context: &mut ggez::Context,
         id: &str,
     ) -> ggez::GameResult<Self> {
         default_get_cached_fast(cache, context, id)
     }
 
-    fn contains_fast<S: Source + ?Sized>(cache: &AssetCache<S>, id: &str) -> bool {
-        default_contains_fast::<Self, _>(cache, id)
+    fn contains_fast(cache: AnyCache, id: &str) -> bool {
+        default_contains_fast::<Self>(cache, id)
     }
 }
 
