@@ -7,8 +7,8 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 description= "`assets_manager` integration for `ggez`"
 
-repository = "https://github.com/a1phyr/ggez_assets_manager"
-documentation = "https://docs.rs/ggez_assets_manager"
+repository = "https://github.com/a1phyr/ggez-assets_manager"
+documentation = "https://docs.rs/ggez-assets_manager"
 
 categories = ["caching", "filesystem", "game-development"]
 keywords = ["assets", "cache", "ggez", "hot-reloading", "resources"]
