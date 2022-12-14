@@ -9,7 +9,7 @@ use std::{borrow::Cow, io};
 fn convert_error(err: assets_manager::Error) -> ggez::GameError {
     match err.reason().downcast_ref::<io::Error>() {
         Some(io_err) if io_err.kind() == io::ErrorKind::NotFound => {
-            ggez::GameError::ResourceNotFound(err.id().to_owned(), Vec::new())
+            ggez::GameError::ResourceNotFound(err.id().to_string(), Vec::new())
         }
         _ => ggez::GameError::ResourceLoadError(format!("\"{}\": {:?}", err.id(), err.reason())),
     }
