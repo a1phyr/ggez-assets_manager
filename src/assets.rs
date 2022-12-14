@@ -1,6 +1,6 @@
 use assets_manager::{
     asset::{NotHotReloaded, Storable},
-    loader, AnyCache, Asset, BoxedError, ReloadWatcher,
+    loader, AnyCache, Asset, BoxedError, ReloadWatcher, SharedBytes,
 };
 use parking_lot::Mutex;
 use std::{borrow::Cow, io};
@@ -108,7 +108,11 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
 #[non_exhaustive]
 pub struct GgezLoader;
 
-pub struct ImageAsset(image::RgbaImage);
+pub struct ImageAsset {
+    width: u16,
+    height: u16,
+    data: SharedBytes,
+}
 
 impl Asset for ImageAsset {
     type Loader = GgezLoader;
@@ -118,7 +122,21 @@ impl Asset for ImageAsset {
 impl loader::Loader<ImageAsset> for GgezLoader {
     fn load(content: Cow<[u8]>, ext: &str) -> Result<ImageAsset, BoxedError> {
         let img: image::DynamicImage = loader::ImageLoader::load(content, ext)?;
-        Ok(ImageAsset(img.to_rgba8()))
+        let img = img.to_rgba8();
+
+        #[cold]
+        fn size_error() -> BoxedError {
+            BoxedError::from("image dimensions do not fit a u16")
+        }
+
+        let width = img.width().try_into().map_err(|_| size_error())?;
+        let height = img.height().try_into().map_err(|_| size_error())?;
+
+        Ok(ImageAsset {
+            width,
+            height,
+            data: img.into_raw().into(),
+        })
     }
 }
 
@@ -126,15 +144,7 @@ impl GgezAsset for ggez::graphics::Image {
     type MidRepr = ImageAsset;
 
     fn from_repr(context: &mut ggez::Context, image: &ImageAsset) -> ggez::GameResult<Self> {
-        #[cold]
-        fn size_error() -> ggez::GameError {
-            ggez::GameError::ResourceLoadError(String::from("image dimensions do not fit a u16"))
-        }
-
-        let width = image.0.width().try_into().map_err(|_| size_error())?;
-        let height = image.0.height().try_into().map_err(|_| size_error())?;
-
-        Self::from_rgba8(context, width, height, &image.0)
+        Self::from_rgba8(context, image.width, image.height, &image.data)
     }
 
     fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
