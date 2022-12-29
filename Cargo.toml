@@ -22,12 +22,12 @@ hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
 assets_manager = {version = "0.9", default-features = false, features = ["parking_lot", "zip", "image"]}
-ggez = "0.7"
+ggez = "0.8"
 
-directories = "3.0"
+directories = "4.0"
 image = {version = "0.24", default-features = false, features = ["png", "bmp", "webp"]}
+log = "0.4"
 parking_lot = "0.12"
 
 [dev-dependencies]
 env_logger = "0.10"
-log = "0.4"

@@ -42,8 +42,9 @@ pub trait GgezAsset: assets::GgezAsset {}
 impl GgezAsset for ggez::audio::SoundData {}
 impl GgezAsset for ggez::audio::Source {}
 impl GgezAsset for ggez::audio::SpatialSource {}
-impl GgezAsset for ggez::graphics::Font {}
+// impl GgezAsset for ggez::graphics::Font {}
 impl GgezAsset for ggez::graphics::Image {}
+impl GgezAsset for ggez::graphics::Shader {}
 
 /// An extension trait for `AssetCache`.
 ///
@@ -76,6 +77,9 @@ pub trait AssetCacheExt: seal::Sealed {
     fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
     where
         T: GgezAsset;
+
+    /// Add a font to `ggez` with the given name, loaded from the given id.
+    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()>;
 }
 
 impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
@@ -122,6 +126,10 @@ impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
             self.ggez_contains::<T>(id).then(ReloadWatcher::default)
         }
     }
+
+    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
+        assets::set_font(self.as_any_cache(), context, name, id)
+    }
 }
 
 impl<'a> AssetCacheExt for AnyCache<'a> {
@@ -167,5 +175,9 @@ impl<'a> AssetCacheExt for AnyCache<'a> {
         } else {
             self.ggez_contains::<T>(id).then(ReloadWatcher::default)
         }
+    }
+
+    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
+        assets::set_font(*self, context, name, id)
     }
 }
