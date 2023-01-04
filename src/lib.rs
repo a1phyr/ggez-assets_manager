@@ -6,17 +6,14 @@
 mod assets;
 mod source;
 
-use ::assets_manager::AnyCache;
-pub use ::assets_manager::{AssetCache, ReloadWatcher};
+pub use assets_manager;
+
+use assets_manager::AnyCache;
+pub use assets_manager::{AssetCache, ReloadWatcher};
 pub use source::GgezFileSystem;
 
 /// An `AssetCache` for use with `ggez`.
 pub type GgezAssetCache = assets_manager::AssetCache<GgezFileSystem>;
-
-/// Re-export of `assets_manager`
-pub mod assets_manager {
-    pub use assets_manager::*;
-}
 
 mod seal {
     pub trait Sealed {}
