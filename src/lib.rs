@@ -27,8 +27,24 @@ mod seal {
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
 #[must_use]
+#[deprecated = "use `create_asset_cache` instead"]
+#[allow(deprecated)]
 pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
     AssetCache::with_source(GgezFileSystem::new(game_id, author))
+}
+
+/// Creates a new `GgezAssetCache`.
+///
+/// `game_id` and `author` parameters should be the same as thoses given to
+/// [`ggez::ContextBuilder::new`].
+///
+/// Note that resources added via `ContextBuilder::add_resource_path` or
+/// `ContextBuilder::add_zip_file` are not supported at the moment.
+#[must_use]
+pub fn create_asset_cache(
+    fs: &impl ggez::context::Has<ggez::filesystem::Filesystem>,
+) -> GgezAssetCache {
+    AssetCache::with_source(GgezFileSystem::from_context(fs))
 }
 
 /// Types that can be used with [`AssetCacheExt`].

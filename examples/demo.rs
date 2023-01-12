@@ -20,9 +20,9 @@ struct MainState {
 }
 
 impl MainState {
-    fn new() -> Self {
+    fn new(ctx: &ggez::Context) -> Self {
         Self {
-            cache: ggez_assets_manager::new_asset_cache(GAME_ID, AUTHOR),
+            cache: ggez_assets_manager::create_asset_cache(ctx),
         }
     }
 }
@@ -88,7 +88,7 @@ fn main() -> GameResult<()> {
         .init();
 
     let (ctx, event_loop) = ggez::ContextBuilder::new(GAME_ID, AUTHOR).build()?;
-    let state = MainState::new();
+    let state = MainState::new(&ctx);
 
     event::run(ctx, event_loop, state)
 }

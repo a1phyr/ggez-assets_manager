@@ -22,10 +22,31 @@ fn no_valid_source_error() -> io::Error {
 }
 
 impl GgezFileSystem {
+    /// Creates a new `FileSystem` from `ggez` context.
+    ///
+    /// Note that additionnal
+    #[inline]
+    pub fn from_context(fs: &impl ggez::context::Has<ggez::filesystem::Filesystem>) -> Self {
+        fn inner(fs: &ggez::filesystem::Filesystem) -> GgezFileSystem {
+            let resources = source::FileSystem::new(fs.resources_dir()).ok();
+            let zip = source::Zip::open(fs.zip_dir()).ok().map(Arc::new);
+            let config = source::FileSystem::new(fs.user_data_dir()).ok();
+
+            GgezFileSystem {
+                resources,
+                zip,
+                config,
+            }
+        }
+
+        inner(fs.retrieve())
+    }
+
     /// Creates a new `FileSystem`.
     ///
     /// `game_id` and `author` parameters should be the same as thoses given to
     /// [`ggez::ContextBuilder::new`].
+    #[deprecated = "use `GgezFileSystem::from_context` instead"]
     pub fn new(game_id: &str, author: &str) -> Self {
         let resources = source::FileSystem::new("resources").ok();
         let zip = source::Zip::open("resources.zip").ok().map(Arc::new);
