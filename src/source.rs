@@ -14,6 +14,7 @@ use assets_manager::{
 pub struct GgezFileSystem {
     resources: Option<source::FileSystem>,
     zip: Option<Arc<source::Zip>>,
+    local: Option<source::FileSystem>,
     config: Option<source::FileSystem>,
 }
 
@@ -30,11 +31,13 @@ impl GgezFileSystem {
         fn inner(fs: &ggez::filesystem::Filesystem) -> GgezFileSystem {
             let resources = source::FileSystem::new(fs.resources_dir()).ok();
             let zip = source::Zip::open(fs.zip_dir()).ok().map(Arc::new);
-            let config = source::FileSystem::new(fs.user_data_dir()).ok();
+            let local = source::FileSystem::new(fs.user_data_dir()).ok();
+            let config = source::FileSystem::new(fs.user_config_dir()).ok();
 
             GgezFileSystem {
                 resources,
                 zip,
+                local,
                 config,
             }
         }
@@ -51,12 +54,18 @@ impl GgezFileSystem {
         let resources = source::FileSystem::new("resources").ok();
         let zip = source::Zip::open("resources.zip").ok().map(Arc::new);
 
-        let config = directories::ProjectDirs::from("", author, game_id)
-            .and_then(|project_dir| source::FileSystem::new(project_dir.data_local_dir()).ok());
+        let (local, config) = match directories::ProjectDirs::from("", author, game_id) {
+            Some(project_dir) => (
+                source::FileSystem::new(project_dir.data_local_dir()).ok(),
+                source::FileSystem::new(project_dir.config_dir()).ok(),
+            ),
+            None => (None, None),
+        };
 
         Self {
             resources,
             zip,
+            local,
             config,
         }
     }
@@ -73,6 +82,12 @@ impl Source for GgezFileSystem {
             };
         }
         if let Some(source) = &self.zip {
+            match source.read(id, ext) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
+        }
+        if let Some(source) = &self.local {
             match source.read(id, ext) {
                 Err(e) => err = Some(e),
                 content => return content,
@@ -103,6 +118,12 @@ impl Source for GgezFileSystem {
                 content => return content,
             }
         }
+        if let Some(source) = &self.local {
+            match source.read_dir(id, f) {
+                Err(e) => err = Some(e),
+                content => return content,
+            }
+        }
         if let Some(source) = &self.config {
             match source.read_dir(id, f) {
                 Err(e) => err = Some(e),
@@ -118,12 +139,15 @@ impl Source for GgezFileSystem {
             s.as_ref().map_or(false, |s| s.exists(entry))
         }
 
-        exists(&self.resources, entry) || exists(&self.zip, entry) || exists(&self.config, entry)
+        exists(&self.resources, entry)
+            || exists(&self.zip, entry)
+            || exists(&self.local, entry)
+            || exists(&self.config, entry)
     }
 
     fn make_source(&self) -> Option<Box<dyn Source + Send>> {
         // Disable hot-reloading if there is no asset directory
-        if self.resources.is_none() && self.config.is_none() {
+        if self.resources.is_none() && self.local.is_none() && self.config.is_none() {
             None
         } else {
             Some(Box::new(self.clone()))
@@ -136,6 +160,9 @@ impl Source for GgezFileSystem {
     ) -> Result<DynUpdateSender, assets_manager::BoxedError> {
         let mut watcher = FsWatcherBuilder::new()?;
         if let Some(res) = &self.resources {
+            watcher.watch(res.root().to_owned())?;
+        }
+        if let Some(res) = &self.local {
             watcher.watch(res.root().to_owned())?;
         }
         if let Some(res) = &self.config {
