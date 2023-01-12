@@ -51,13 +51,13 @@ impl Source for GgezFileSystem {
                 content => return content,
             };
         }
-        if let Some(source) = &self.resources {
+        if let Some(source) = &self.zip {
             match source.read(id, ext) {
                 Err(e) => err = Some(e),
                 content => return content,
             }
         }
-        if let Some(source) = &self.resources {
+        if let Some(source) = &self.config {
             match source.read(id, ext) {
                 Err(e) => err = Some(e),
                 content => return content,
@@ -76,13 +76,13 @@ impl Source for GgezFileSystem {
                 content => return content,
             };
         }
-        if let Some(source) = &self.resources {
+        if let Some(source) = &self.zip {
             match source.read_dir(id, f) {
                 Err(e) => err = Some(e),
                 content => return content,
             }
         }
-        if let Some(source) = &self.resources {
+        if let Some(source) = &self.config {
             match source.read_dir(id, f) {
                 Err(e) => err = Some(e),
                 content => return content,
