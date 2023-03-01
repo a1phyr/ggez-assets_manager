@@ -1,6 +1,5 @@
 use assets_manager::{
-    asset::{NotHotReloaded, Storable},
-    loader, AnyCache, Asset, BoxedError, Compound, ReloadWatcher,
+    asset::Storable, loader, AnyCache, Asset, BoxedError, OnceInitCell, ReloadWatcher,
 };
 use parking_lot::Mutex;
 use std::{borrow::Cow, io};
@@ -127,74 +126,22 @@ pub trait GgezAsset: Send + Sync + Sized + 'static {
 #[non_exhaustive]
 pub struct GgezLoader;
 
-struct GgezMutexValue<T>(Mutex<T>);
-
-impl<T: Clone> GgezMutexValue<T> {
-    fn new(value: T) -> Self {
-        Self(Mutex::new(value))
-    }
-
-    fn set(&self, value: T) {
-        *self.0.lock() = value;
-    }
-
-    fn get_clone(&self) -> T {
-        self.0.lock().clone()
-    }
-}
-
-impl<T: Send + 'static> Storable for GgezMutexValue<T> {}
-impl<T: Send + 'static> NotHotReloaded for GgezMutexValue<T> {}
-
-struct GgezAssetRepr<T>(Mutex<Option<T>>);
-
-impl<T: Asset> Compound for GgezAssetRepr<T> {
-    fn load(cache: AnyCache, id: &assets_manager::SharedString) -> Result<Self, BoxedError> {
-        let asset = cache.load_owned::<T>(id)?;
-        Ok(Self(Mutex::new(Some(asset))))
-    }
-}
+type GgezAssetRepr<T> = OnceInitCell<<T as NewWithGgezContext>::Asset, T>;
 
 trait NewWithGgezContext: Clone + Send + Sync + 'static {
     type Asset: Asset;
 
-    fn create(context: &mut ggez::Context, asset: Self::Asset) -> ggez::GameResult<Self>;
+    fn create(context: &mut ggez::Context, asset: &Self::Asset) -> ggez::GameResult<Self>;
 
     fn load_with_handle(
-        cache: AnyCache,
-        asset_handle: assets_manager::Handle<GgezAssetRepr<Self::Asset>>,
+        asset_handle: assets_manager::Handle<GgezAssetRepr<Self>>,
         context: &mut ggez::Context,
-        id: &str,
     ) -> ggez::GameResult<Self> {
-        let asset_handle = asset_handle.read();
-        let mut asset_lock = asset_handle.0.lock();
-        let self_handle = cache.get_cached::<GgezMutexValue<Self>>(id);
-
-        let handle = match (asset_lock.take(), self_handle) {
-            // We are fine, go on with cached value
-            (None, Some(this_handle)) => this_handle,
-
-            // The mutex was not empty, so the value needs reloading
-            (Some(asset), Some(this_handle)) => {
-                match Self::create(context, asset) {
-                    Ok(this) => this_handle.get().set(this.clone()),
-                    Err(err) => log::error!("Failed to reload \"{id}\": {err}"),
-                }
-                this_handle
-            }
-
-            // The value needs reloading, but it was not previously stored.
-            // This actually is the base case
-            (Some(asset), None) => {
-                let this = Self::create(context, asset)?;
-                cache.get_or_insert(id, GgezMutexValue::new(this))
-            }
-
-            // This can happen if `Self::create` previously returned an error
-            (None, None) => return Err(ggez::GameError::ResourceLoadError(id.to_string())),
-        };
-
-        Ok(handle.get().get_clone())
+        let asset = asset_handle
+            .read()
+            .get_or_try_init(|asset| Self::create(context, asset))?
+            .clone();
+        Ok(asset)
     }
 }
 
@@ -207,21 +154,10 @@ impl<T: NewWithGgezContext> GgezAsset for T {
 
     fn load(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
         let asset_handle = cache
-            .load::<GgezAssetRepr<T::Asset>>(id)
+            .load::<GgezAssetRepr<Self>>(id)
             .map_err(convert_error)?;
 
-        Self::load_with_handle(cache, asset_handle, context, id)
-    }
-
-    fn load_fast(cache: AnyCache, context: &mut ggez::Context, id: &str) -> ggez::GameResult<Self> {
-        if let Some(this) = cache.get_cached::<GgezValue<Self>>(id) {
-            return Ok(this.cloned().0);
-        }
-
-        let asset = cache.load_owned(id).map_err(convert_error)?;
-        let this = Self::create(context, asset)?;
-        let this = cache.get_or_insert(id, GgezValue(this));
-        Ok(this.cloned().0)
+        Self::load_with_handle(asset_handle, context)
     }
 
     fn get_cached(
@@ -230,33 +166,18 @@ impl<T: NewWithGgezContext> GgezAsset for T {
         id: &str,
     ) -> ggez::GameResult<Self> {
         let asset_handle = cache
-            .get_cached::<GgezAssetRepr<T::Asset>>(id)
+            .get_cached::<GgezAssetRepr<Self>>(id)
             .ok_or_else(not_found_error)?;
 
-        Self::load_with_handle(cache, asset_handle, context, id)
-    }
-
-    fn get_cached_fast(
-        cache: AnyCache,
-        _context: &mut ggez::Context,
-        id: &str,
-    ) -> ggez::GameResult<Self> {
-        match cache.get_cached::<GgezValue<Self>>(id) {
-            Some(handle) => Ok(handle.cloned().0),
-            None => Err(not_found_error()),
-        }
+        Self::load_with_handle(asset_handle, context)
     }
 
     fn contains(cache: AnyCache, id: &str) -> bool {
-        cache.contains::<GgezAssetRepr<T::Asset>>(id)
-    }
-
-    fn contains_fast(cache: AnyCache, id: &str) -> bool {
-        cache.contains::<GgezValue<Self>>(id)
+        cache.contains::<GgezAssetRepr<Self>>(id)
     }
 
     fn reload_watcher<'a>(cache: AnyCache<'a>, id: &str) -> Option<ReloadWatcher<'a>> {
-        let repr = cache.get_cached::<GgezAssetRepr<T::Asset>>(id)?;
+        let repr = cache.get_cached::<GgezAssetRepr<Self>>(id)?;
         Some(repr.reload_watcher())
     }
 }
@@ -280,7 +201,7 @@ impl loader::Loader<ImageAsset> for GgezLoader {
 impl NewWithGgezContext for ggez::graphics::Image {
     type Asset = ImageAsset;
 
-    fn create(context: &mut ggez::Context, image: ImageAsset) -> ggez::GameResult<Self> {
+    fn create(context: &mut ggez::Context, image: &ImageAsset) -> ggez::GameResult<Self> {
         Ok(ggez::graphics::Image::from_pixels(
             context,
             &image.0,
@@ -307,9 +228,9 @@ impl Asset for ShaderAsset {
 impl NewWithGgezContext for ggez::graphics::Shader {
     type Asset = ShaderAsset;
 
-    fn create(context: &mut ggez::Context, asset: Self::Asset) -> ggez::GameResult<Self> {
+    fn create(context: &mut ggez::Context, shader: &ShaderAsset) -> ggez::GameResult<Self> {
         ggez::graphics::ShaderBuilder::new_wgsl()
-            .combined_code(&asset.0)
+            .combined_code(&shader.0)
             .build(context)
     }
 }
