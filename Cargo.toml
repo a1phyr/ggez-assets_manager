@@ -2,7 +2,7 @@
 name = "ggez-assets_manager"
 version = "0.3.2"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.64"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 description= "`assets_manager` integration for `ggez`"
@@ -21,7 +21,7 @@ ahash = ["assets_manager/ahash"]
 hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
-assets_manager = {version = "0.9.7", default-features = false, features = ["utils", "parking_lot", "zip", "image"]}
+assets_manager = {version = "0.10", default-features = false, features = ["utils", "parking_lot", "zip", "image"]}
 ggez = "0.8"
 
 directories = "4.0"

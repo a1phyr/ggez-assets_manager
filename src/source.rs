@@ -1,8 +1,8 @@
-use std::{borrow::Cow, io, sync::Arc};
+use std::{io, sync::Arc};
 
 use assets_manager::{
     hot_reloading::{DynUpdateSender, EventSender, FsWatcherBuilder},
-    source::{self, DirEntry, Source},
+    source::{self, DirEntry, FileContent, Source},
 };
 
 /// A [`Source`] using `ggez`' paths to read from the filesystem.
@@ -72,7 +72,7 @@ impl GgezFileSystem {
 }
 
 impl Source for GgezFileSystem {
-    fn read(&self, id: &str, ext: &str) -> io::Result<Cow<[u8]>> {
+    fn read(&self, id: &str, ext: &str) -> io::Result<FileContent> {
         let mut err = None;
 
         if let Some(source) = &self.resources {
