@@ -229,8 +229,9 @@ impl NewWithGgezContext for ggez::graphics::Shader {
     type Asset = ShaderAsset;
 
     fn create(context: &mut ggez::Context, shader: &ShaderAsset) -> ggez::GameResult<Self> {
-        ggez::graphics::ShaderBuilder::new_wgsl()
-            .combined_code(&shader.0)
+        ggez::graphics::ShaderBuilder::new()
+            .fragment_code(&shader.0)
+            .vertex_code(&shader.0)
             .build(context)
     }
 }
