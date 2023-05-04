@@ -87,7 +87,16 @@ fn main() -> GameResult<()> {
         .filter_module("wgpu_core", log::LevelFilter::Warn)
         .init();
 
-    let (ctx, event_loop) = ggez::ContextBuilder::new(GAME_ID, AUTHOR).build()?;
+    let mut ctx_builder = ggez::ContextBuilder::new(GAME_ID, AUTHOR);
+
+    // By default, `ggez` searches resources directory next to the executable,
+    // so override this.
+    if let Ok(mut path) = std::env::var("CARGO_MANIFEST_DIR") {
+        path.push_str("/resources");
+        ctx_builder = ctx_builder.resources_dir_name(path);
+    }
+
+    let (ctx, event_loop) = ctx_builder.build()?;
     let state = MainState::new(&ctx);
 
     event::run(ctx, event_loop, state)
