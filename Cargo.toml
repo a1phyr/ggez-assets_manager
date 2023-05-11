@@ -22,7 +22,7 @@ hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
 assets_manager = { version = "0.10", default-features = false, features = ["utils", "parking_lot", "zip", "image"] }
-ggez = "=0.9.0-rc0"
+ggez = { version = "=0.9.0-rc0", default-features = false, features = ["audio"] }
 
 directories = "4.0"
 image = { version = "0.24", default-features = false, features = ["png", "bmp", "webp"] }
