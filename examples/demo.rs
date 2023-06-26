@@ -91,8 +91,8 @@ fn main() -> GameResult<()> {
 
     // By default, `ggez` searches resources directory next to the executable,
     // so override this.
-    if let Ok(mut path) = std::env::var("CARGO_MANIFEST_DIR") {
-        path.push_str("/resources");
+    if let Some(mut path) = std::env::var_os("CARGO_MANIFEST_DIR") {
+        path.push("/resources");
         ctx_builder = ctx_builder.resources_dir_name(path);
     }
 
