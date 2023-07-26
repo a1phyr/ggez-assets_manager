@@ -186,7 +186,7 @@ pub struct ImageAsset(image::RgbaImage);
 
 impl Asset for ImageAsset {
     type Loader = GgezLoader;
-    const EXTENSIONS: &'static [&'static str] = &["png", "bmp", "wepb"];
+    const EXTENSIONS: &'static [&'static str] = &["png", "bmp", "wepb", "jpeg", "jpg"];
 }
 
 impl loader::Loader<ImageAsset> for GgezLoader {
