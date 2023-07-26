@@ -9,20 +9,12 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - 1.64
     steps:
       - name: Install development libraries
         run: sudo apt update && sudo apt install -y libasound2-dev libudev-dev
 
       - name: Checkout sources
         uses: actions/checkout@v3
-
-      - name: Install toolchain
-        run: rustup toolchain add ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
 
       - name: cargo test
         run: cargo test
