@@ -134,7 +134,7 @@ trait NewWithGgezContext: Clone + Send + Sync + 'static {
     fn create(context: &mut ggez::Context, asset: &Self::Asset) -> ggez::GameResult<Self>;
 
     fn load_with_handle(
-        asset_handle: assets_manager::Handle<GgezAssetRepr<Self>>,
+        asset_handle: &assets_manager::Handle<GgezAssetRepr<Self>>,
         context: &mut ggez::Context,
     ) -> ggez::GameResult<Self> {
         let asset = asset_handle

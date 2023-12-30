@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use assets_manager::{
-    hot_reloading::{DynUpdateSender, EventSender, FsWatcherBuilder},
+    hot_reloading::{EventSender, FsWatcherBuilder},
     source::{self, DirEntry, FileContent, Source},
 };
 
@@ -157,7 +157,7 @@ impl Source for GgezFileSystem {
     fn configure_hot_reloading(
         &self,
         events: EventSender,
-    ) -> Result<DynUpdateSender, assets_manager::BoxedError> {
+    ) -> Result<(), assets_manager::BoxedError> {
         let mut watcher = FsWatcherBuilder::new()?;
         if let Some(res) = &self.resources {
             watcher.watch(res.root().to_owned())?;
@@ -168,6 +168,7 @@ impl Source for GgezFileSystem {
         if let Some(res) = &self.config {
             watcher.watch(res.root().to_owned())?;
         }
-        Ok(watcher.build(events))
+        watcher.build(events);
+        Ok(())
     }
 }
