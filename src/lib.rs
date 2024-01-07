@@ -19,6 +19,7 @@ mod seal {
     pub trait Sealed {}
 
     impl<S: assets_manager::source::Source> Sealed for assets_manager::AssetCache<S> {}
+    impl<S: assets_manager::source::Source> Sealed for assets_manager::LocalAssetCache<S> {}
     impl<'a> Sealed for assets_manager::AnyCache<'a> {}
 }
 
@@ -96,6 +97,56 @@ pub trait AssetCacheExt: seal::Sealed {
 }
 
 impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
+    fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
+    where
+        T: GgezAsset,
+    {
+        if cfg!(feature = "hot-reloading") {
+            T::load(self.as_any_cache(), context, id)
+        } else {
+            T::load_fast(self.as_any_cache(), context, id)
+        }
+    }
+
+    fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
+    where
+        T: GgezAsset,
+    {
+        if cfg!(feature = "hot-reloading") {
+            T::get_cached(self.as_any_cache(), context, id)
+        } else {
+            T::get_cached_fast(self.as_any_cache(), context, id)
+        }
+    }
+
+    fn ggez_contains<T>(&self, id: &str) -> bool
+    where
+        T: GgezAsset,
+    {
+        if cfg!(feature = "hot-reloading") {
+            T::contains(self.as_any_cache(), id)
+        } else {
+            T::contains_fast(self.as_any_cache(), id)
+        }
+    }
+
+    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
+    where
+        T: GgezAsset,
+    {
+        if cfg!(feature = "hot-reloading") {
+            T::reload_watcher(self.as_any_cache(), id)
+        } else {
+            self.ggez_contains::<T>(id).then(ReloadWatcher::default)
+        }
+    }
+
+    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
+        assets::set_font(self.as_any_cache(), context, name, id)
+    }
+}
+
+impl<S: assets_manager::source::Source> AssetCacheExt for assets_manager::LocalAssetCache<S> {
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset,
