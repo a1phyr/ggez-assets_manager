@@ -1,4 +1,4 @@
-//! This crate provide integration of [`assets_manager`] for [`ggez`].
+//! This crate provides integration of [`assets_manager`] for [`ggez`].
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
