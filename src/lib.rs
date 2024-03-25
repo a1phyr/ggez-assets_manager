@@ -1,8 +1,9 @@
 //! This crate provides integration of [`assets_manager`] for [`ggez`].
 
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 
+pub mod aaaa;
 mod assets;
 mod source;
 
