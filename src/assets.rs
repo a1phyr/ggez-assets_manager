@@ -1,6 +1,4 @@
-use assets_manager::{
-    asset::Storable, loader, AnyCache, Asset, BoxedError, OnceInitCell, ReloadWatcher,
-};
+use assets_manager::{loader, AnyCache, Asset, BoxedError, OnceInitCell, ReloadWatcher};
 use parking_lot::Mutex;
 use std::{borrow::Cow, io};
 
@@ -21,8 +19,6 @@ fn not_found_error() -> ggez::GameError {
 
 #[derive(Debug, Clone, Copy)]
 struct GgezValue<T>(T);
-
-impl<T: Send + Sync + 'static> Storable for GgezValue<T> {}
 
 fn default_load_fast<T: GgezAsset + Clone>(
     cache: AnyCache,
@@ -190,8 +186,8 @@ impl Asset for ImageAsset {
 }
 
 impl loader::Loader<ImageAsset> for GgezLoader {
-    fn load(content: Cow<[u8]>, ext: &str) -> Result<ImageAsset, BoxedError> {
-        let img: image::DynamicImage = loader::ImageLoader::load(content, ext)?;
+    fn load(content: Cow<[u8]>, _: &str) -> Result<ImageAsset, BoxedError> {
+        let img: image::DynamicImage = image::load_from_memory(&content)?;
         let img = img.to_rgba8();
 
         Ok(ImageAsset(img))

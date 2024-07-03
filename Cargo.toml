@@ -20,7 +20,7 @@ ahash = ["assets_manager/ahash"]
 hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
-assets_manager = { version = "0.11", default-features = false, features = ["utils", "parking_lot", "zip", "image"] }
+assets_manager = { version = "0.12", default-features = false, features = ["utils", "parking_lot", "zip"] }
 ggez = { version = "0.9.0", default-features = false, features = ["audio"] }
 
 directories = "5.0"
