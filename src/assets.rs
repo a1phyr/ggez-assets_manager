@@ -166,16 +166,13 @@ impl<T: NewWithGgezContext> GgezAsset for T {
     }
 }
 
-pub struct ImageAsset(image::RgbaImage);
+pub struct ImageAsset(Vec<u8>);
 
 impl FileAsset for ImageAsset {
     const EXTENSIONS: &'static [&'static str] = &["png", "bmp", "wepb", "jpeg", "jpg"];
 
     fn from_bytes(bytes: Cow<[u8]>) -> Result<Self, BoxedError> {
-        let img: image::DynamicImage = image::load_from_memory(&bytes)?;
-        let img = img.to_rgba8();
-
-        Ok(ImageAsset(img))
+        Ok(ImageAsset(bytes.into_owned()))
     }
 }
 
@@ -183,13 +180,7 @@ impl NewWithGgezContext for ggez::graphics::Image {
     type Asset = ImageAsset;
 
     fn create(context: &mut ggez::Context, image: &ImageAsset) -> ggez::GameResult<Self> {
-        Ok(ggez::graphics::Image::from_pixels(
-            context,
-            &image.0,
-            ggez::graphics::ImageFormat::Rgba8UnormSrgb,
-            image.0.width(),
-            image.0.height(),
-        ))
+        ggez::graphics::Image::from_bytes(context, &image.0)
     }
 }
 

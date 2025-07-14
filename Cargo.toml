@@ -24,7 +24,6 @@ assets_manager = { version = "0.13", default-features = false, features = ["util
 ggez = { version = "0.9.0", default-features = false, features = ["audio"] }
 
 directories = "5.0"
-image = { version = "0.24", default-features = false, features = ["png", "bmp", "webp", "jpeg"] }
 log = "0.4"
 parking_lot = "0.12"
 
