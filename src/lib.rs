@@ -8,33 +8,26 @@ mod source;
 
 pub use assets_manager;
 
-use assets_manager::AnyCache;
 pub use assets_manager::{AssetCache, ReloadWatcher};
 pub use source::GgezFileSystem;
 
-/// An `AssetCache` for use with `ggez`.
-pub type GgezAssetCache = assets_manager::AssetCache<GgezFileSystem>;
-
 mod seal {
     pub trait Sealed {}
-
-    impl<S: assets_manager::source::Source> Sealed for assets_manager::AssetCache<S> {}
-    impl<S: assets_manager::source::Source> Sealed for assets_manager::LocalAssetCache<S> {}
-    impl<'a> Sealed for assets_manager::AnyCache<'a> {}
+    impl Sealed for assets_manager::AssetCache {}
 }
 
-/// Creates a new `GgezAssetCache`.
+/// Creates a new `AssetCache` backed by a [`GgezFileSystem`].
 ///
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
 #[must_use]
 #[deprecated = "use `create_asset_cache` instead"]
 #[allow(deprecated)]
-pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
+pub fn new_asset_cache(game_id: &str, author: &str) -> AssetCache {
     AssetCache::with_source(GgezFileSystem::new(game_id, author))
 }
 
-/// Creates a new `GgezAssetCache`.
+/// Creates a new `AssetCache` backed by a [`GgezFileSystem`].
 ///
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
@@ -44,7 +37,7 @@ pub fn new_asset_cache(game_id: &str, author: &str) -> GgezAssetCache {
 #[must_use]
 pub fn create_asset_cache(
     fs: &impl ggez::context::Has<ggez::filesystem::Filesystem>,
-) -> GgezAssetCache {
+) -> AssetCache {
     AssetCache::with_source(GgezFileSystem::from_context(fs))
 }
 
@@ -76,7 +69,7 @@ pub trait AssetCacheExt: seal::Sealed {
         T: GgezAsset;
 
     /// Gets an asset from the cache and returns an errors if it was not found.
-    fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
+    fn ggez_get<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset;
 
@@ -96,26 +89,26 @@ pub trait AssetCacheExt: seal::Sealed {
     fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()>;
 }
 
-impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
+impl AssetCacheExt for AssetCache {
     fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset,
     {
         if cfg!(feature = "hot-reloading") {
-            T::load(self.as_any_cache(), context, id)
+            T::load(self, context, id)
         } else {
-            T::load_fast(self.as_any_cache(), context, id)
+            T::load_fast(self, context, id)
         }
     }
 
-    fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
+    fn ggez_get<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
     where
         T: GgezAsset,
     {
         if cfg!(feature = "hot-reloading") {
-            T::get_cached(self.as_any_cache(), context, id)
+            T::get(self, context, id)
         } else {
-            T::get_cached_fast(self.as_any_cache(), context, id)
+            T::get_fast(self, context, id)
         }
     }
 
@@ -124,9 +117,9 @@ impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
         T: GgezAsset,
     {
         if cfg!(feature = "hot-reloading") {
-            T::contains(self.as_any_cache(), id)
+            T::contains(self, id)
         } else {
-            T::contains_fast(self.as_any_cache(), id)
+            T::contains_fast(self, id)
         }
     }
 
@@ -135,113 +128,13 @@ impl<S: assets_manager::source::Source> AssetCacheExt for AssetCache<S> {
         T: GgezAsset,
     {
         if cfg!(feature = "hot-reloading") {
-            T::reload_watcher(self.as_any_cache(), id)
+            T::reload_watcher(self, id)
         } else {
             self.ggez_contains::<T>(id).then(ReloadWatcher::default)
         }
     }
 
     fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
-        assets::set_font(self.as_any_cache(), context, name, id)
-    }
-}
-
-impl<S: assets_manager::source::Source> AssetCacheExt for assets_manager::LocalAssetCache<S> {
-    fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::load(self.as_any_cache(), context, id)
-        } else {
-            T::load_fast(self.as_any_cache(), context, id)
-        }
-    }
-
-    fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::get_cached(self.as_any_cache(), context, id)
-        } else {
-            T::get_cached_fast(self.as_any_cache(), context, id)
-        }
-    }
-
-    fn ggez_contains<T>(&self, id: &str) -> bool
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::contains(self.as_any_cache(), id)
-        } else {
-            T::contains_fast(self.as_any_cache(), id)
-        }
-    }
-
-    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::reload_watcher(self.as_any_cache(), id)
-        } else {
-            self.ggez_contains::<T>(id).then(ReloadWatcher::default)
-        }
-    }
-
-    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
-        assets::set_font(self.as_any_cache(), context, name, id)
-    }
-}
-
-impl<'a> AssetCacheExt for AnyCache<'a> {
-    fn ggez_load<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::load(*self, context, id)
-        } else {
-            T::load_fast(*self, context, id)
-        }
-    }
-
-    fn ggez_get_cached<T>(&self, context: &mut ggez::Context, id: &str) -> ggez::GameResult<T>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::get_cached(*self, context, id)
-        } else {
-            T::get_cached_fast(*self, context, id)
-        }
-    }
-
-    fn ggez_contains<T>(&self, id: &str) -> bool
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::contains(*self, id)
-        } else {
-            T::contains_fast(*self, id)
-        }
-    }
-
-    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
-    where
-        T: GgezAsset,
-    {
-        if cfg!(feature = "hot-reloading") {
-            T::reload_watcher(*self, id)
-        } else {
-            self.ggez_contains::<T>(id).then(ReloadWatcher::default)
-        }
-    }
-
-    fn set_font(&self, context: &mut ggez::Context, name: &str, id: &str) -> ggez::GameResult<()> {
-        assets::set_font(*self, context, name, id)
+        assets::set_font(self, context, name, id)
     }
 }

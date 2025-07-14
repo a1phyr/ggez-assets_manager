@@ -145,15 +145,6 @@ impl Source for GgezFileSystem {
             || exists(&self.config, entry)
     }
 
-    fn make_source(&self) -> Option<Box<dyn Source + Send>> {
-        // Disable hot-reloading if there is no asset directory
-        if self.resources.is_none() && self.local.is_none() && self.config.is_none() {
-            None
-        } else {
-            Some(Box::new(self.clone()))
-        }
-    }
-
     fn configure_hot_reloading(
         &self,
         events: EventSender,

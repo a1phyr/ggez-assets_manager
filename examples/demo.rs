@@ -16,7 +16,7 @@ const MAIN_TEXT: &str = if cfg!(feature = "hot-reloading") {
 const FONT_NAME: &str = "default_font";
 
 struct MainState {
-    cache: ggez_assets_manager::GgezAssetCache,
+    cache: ggez_assets_manager::AssetCache,
 }
 
 impl MainState {
@@ -29,8 +29,6 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, _ctx: &mut ggez::Context) -> GameResult<()> {
-        #[cfg(feature = "hot-reloading")]
-        self.cache.hot_reload();
         Ok(())
     }
 
