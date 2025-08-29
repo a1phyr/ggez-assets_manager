@@ -8,6 +8,7 @@ mod source;
 
 pub use assets_manager;
 
+pub use assets::convert_error;
 pub use assets_manager::{AssetCache, ReloadWatcher};
 pub use source::GgezFileSystem;
 

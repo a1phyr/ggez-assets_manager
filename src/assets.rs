@@ -1,8 +1,9 @@
 use assets_manager::{AssetCache, BoxedError, FileAsset, OnceInitCell, ReloadWatcher};
 use std::{borrow::Cow, io, sync::Mutex};
 
+/// Converts an error from `assets_manager` to `ggez`
 #[cold]
-fn convert_error(err: assets_manager::Error) -> ggez::GameError {
+pub fn convert_error(err: assets_manager::Error) -> ggez::GameError {
     match err.reason().downcast_ref::<io::Error>() {
         Some(io_err) if io_err.kind() == io::ErrorKind::NotFound => {
             ggez::GameError::ResourceNotFound(err.id().to_string(), Vec::new())
