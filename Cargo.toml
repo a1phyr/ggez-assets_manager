@@ -14,9 +14,9 @@ keywords = ["assets", "cache", "ggez", "hot-reloading", "resources"]
 
 
 [features]
-#default = ["ahash"]
+default = ["faster-hash"]
 
-#ahash = ["assets_manager/ahash"]
+faster-hash = ["assets_manager/faster-hash"]
 hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
