@@ -64,11 +64,11 @@ impl event::EventHandler for MainState {
         input: ggez::input::keyboard::KeyInput,
         repeated: bool,
     ) -> GameResult<()> {
-        if input.keycode == Some(ggez::input::keyboard::KeyCode::Space) && !repeated {
+        if input.event.physical_key == ggez::input::keyboard::KeyCode::Space && !repeated {
             match self.cache.ggez_load::<audio::Source>(ctx, "audio.on_key") {
-                Ok(mut source) => source.play_detached(ctx)?,
+                Ok(source) => source.play_detached(),
                 Err(err) => {
-                    static LOGGED: parking_lot::Once = parking_lot::Once::new();
+                    static LOGGED: std::sync::Once = std::sync::Once::new();
                     LOGGED.call_once(|| log::error!("Failed to load sound: {}", err));
                 }
             }
@@ -83,6 +83,8 @@ fn main() -> GameResult<()> {
         .filter_level(log::LevelFilter::Info)
         .filter_module("wgpu_hal", log::LevelFilter::Warn)
         .filter_module("wgpu_core", log::LevelFilter::Warn)
+        .filter_module("symphonia_core", log::LevelFilter::Warn)
+        .filter_module("symphonia_format_ogg", log::LevelFilter::Warn)
         .init();
 
     let mut ctx_builder = ggez::ContextBuilder::new(GAME_ID, AUTHOR);

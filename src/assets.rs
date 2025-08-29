@@ -1,6 +1,5 @@
 use assets_manager::{AssetCache, BoxedError, FileAsset, OnceInitCell, ReloadWatcher};
-use parking_lot::Mutex;
-use std::{borrow::Cow, io};
+use std::{borrow::Cow, io, sync::Mutex};
 
 #[cold]
 fn convert_error(err: assets_manager::Error) -> ggez::GameError {
@@ -224,7 +223,7 @@ pub fn set_font(
 ) -> ggez::GameResult<()> {
     let font = cache.load::<FontAsset>(id).map_err(convert_error)?;
 
-    if let Some(font) = font.read().0.lock().take() {
+    if let Some(font) = font.read().0.lock().unwrap().take() {
         log::debug!("Adding new font to ggez");
         context.gfx.add_font(name, font);
     }
@@ -239,7 +238,7 @@ impl FileAsset for AudioAsset {
     const EXTENSIONS: &'static [&'static str] = &["ogg", "flac", "wav"];
 
     fn from_bytes(bytes: Cow<[u8]>) -> Result<Self, BoxedError> {
-        Ok(AudioAsset(ggez::audio::SoundData::from_bytes(&bytes)))
+        Ok(AudioAsset(ggez::audio::SoundData::from_bytes(&bytes)?))
     }
 }
 

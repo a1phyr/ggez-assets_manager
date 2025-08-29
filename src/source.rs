@@ -1,8 +1,8 @@
-use std::{io, sync::Arc};
+use std::io;
 
 use assets_manager::{
     hot_reloading::{EventSender, FsWatcherBuilder},
-    source::{self, DirEntry, FileContent, Source},
+    source::{DirEntry, FileContent, Source},
 };
 
 /// A [`Source`] using `ggez`' paths to read from the filesystem.
@@ -10,16 +10,9 @@ use assets_manager::{
 /// See [`ggez::filesystem`] for more details.
 ///
 /// When hot-reloading is activated, changes to `"resources.zip"` are ignored.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GgezFileSystem {
-    resources: Option<source::FileSystem>,
-    zip: Option<Arc<source::Zip>>,
-    local: Option<source::FileSystem>,
-    config: Option<source::FileSystem>,
-}
-
-fn no_valid_source_error() -> io::Error {
-    io::Error::new(io::ErrorKind::Other, "Cannot find a valid source")
+    fs: ggez::filesystem::Filesystem,
 }
 
 impl GgezFileSystem {
@@ -28,121 +21,89 @@ impl GgezFileSystem {
     /// Note that additionnal
     #[inline]
     pub fn from_context(fs: &impl ggez::context::Has<ggez::filesystem::Filesystem>) -> Self {
-        fn inner(fs: &ggez::filesystem::Filesystem) -> GgezFileSystem {
-            let resources = source::FileSystem::new(fs.resources_dir()).ok();
-            let zip = source::Zip::open(fs.zip_dir()).ok().map(Arc::new);
-            let local = source::FileSystem::new(fs.user_data_dir()).ok();
-            let config = source::FileSystem::new(fs.user_config_dir()).ok();
-
-            GgezFileSystem {
-                resources,
-                zip,
-                local,
-                config,
-            }
-        }
-
-        inner(fs.retrieve())
-    }
-
-    /// Creates a new `FileSystem`.
-    ///
-    /// `game_id` and `author` parameters should be the same as thoses given to
-    /// [`ggez::ContextBuilder::new`].
-    #[deprecated = "use `GgezFileSystem::from_context` instead"]
-    pub fn new(game_id: &str, author: &str) -> Self {
-        let resources = source::FileSystem::new("resources").ok();
-        let zip = source::Zip::open("resources.zip").ok().map(Arc::new);
-
-        let (local, config) = match directories::ProjectDirs::from("", author, game_id) {
-            Some(project_dir) => (
-                source::FileSystem::new(project_dir.data_local_dir()).ok(),
-                source::FileSystem::new(project_dir.config_dir()).ok(),
-            ),
-            None => (None, None),
-        };
-
         Self {
-            resources,
-            zip,
-            local,
-            config,
+            fs: fs.retrieve().clone(),
         }
     }
 }
 
+fn id_to_path(entry: DirEntry) -> String {
+    let id = entry.id();
+
+    if id.is_empty() {
+        return String::from("/");
+    }
+
+    let mut path = String::with_capacity(id.len() + 10);
+
+    for comp in id.split('.') {
+        path.push('/');
+        path.push_str(comp);
+    }
+
+    match entry {
+        DirEntry::File(_, ext) => {
+            path.push('.');
+            path.push_str(ext);
+        }
+        DirEntry::Directory(_) => path.push('/'),
+    }
+
+    path
+}
+
+fn split_file_name(path: &std::path::Path) -> Option<(&str, &str)> {
+    let name = path.file_name()?.to_str()?;
+    match name.split_once('.') {
+        Some(("", _)) => None,
+        Some(res) => Some(res),
+        None => Some((name, "")),
+    }
+}
+
 impl Source for GgezFileSystem {
-    fn read(&self, id: &str, ext: &str) -> io::Result<FileContent> {
-        let mut err = None;
-
-        if let Some(source) = &self.resources {
-            match source.read(id, ext) {
-                Err(e) => err = Some(e),
-                content => return content,
-            };
-        }
-        if let Some(source) = &self.zip {
-            match source.read(id, ext) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
-        if let Some(source) = &self.local {
-            match source.read(id, ext) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
-        if let Some(source) = &self.config {
-            match source.read(id, ext) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
-
-        Err(err.unwrap_or_else(no_valid_source_error))
+    fn read(&self, id: &str, ext: &str) -> io::Result<FileContent<'_>> {
+        let data = self
+            .fs
+            .read(id_to_path(DirEntry::File(id, ext)))
+            .map_err(io::Error::other)?;
+        Ok(FileContent::Buffer(data))
     }
 
     fn read_dir(&self, id: &str, f: &mut dyn FnMut(DirEntry)) -> io::Result<()> {
-        let mut err = None;
+        let contents = self
+            .fs
+            .read_dir(id_to_path(DirEntry::Directory(id)))
+            .map_err(io::Error::other)?;
 
-        if let Some(source) = &self.resources {
-            match source.read_dir(id, f) {
-                Err(e) => err = Some(e),
-                content => return content,
+        let mut base_id = id.to_owned() + ".";
+
+        contents.iter().for_each(|path| {
+            let Some((name, ext)) = split_file_name(path) else {
+                return;
             };
-        }
-        if let Some(source) = &self.zip {
-            match source.read_dir(id, f) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
-        if let Some(source) = &self.local {
-            match source.read_dir(id, f) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
-        if let Some(source) = &self.config {
-            match source.read_dir(id, f) {
-                Err(e) => err = Some(e),
-                content => return content,
-            }
-        }
 
-        Err(err.unwrap_or_else(no_valid_source_error))
+            base_id.truncate(id.len() + 1);
+            let this_id: &str = if !id.is_empty() {
+                base_id.truncate(id.len() + 1);
+                base_id.push_str(name);
+                &base_id
+            } else {
+                name
+            };
+
+            if self.fs.is_dir(path) {
+                f(assets_manager::source::DirEntry::Directory(this_id))
+            } else {
+                f(assets_manager::source::DirEntry::File(this_id, ext))
+            }
+        });
+
+        Ok(())
     }
 
     fn exists(&self, entry: DirEntry) -> bool {
-        fn exists<S: Source>(s: &Option<S>, entry: DirEntry) -> bool {
-            s.as_ref().map_or(false, |s| s.exists(entry))
-        }
-
-        exists(&self.resources, entry)
-            || exists(&self.zip, entry)
-            || exists(&self.local, entry)
-            || exists(&self.config, entry)
+        self.fs.exists(id_to_path(entry))
     }
 
     fn configure_hot_reloading(
@@ -150,15 +111,9 @@ impl Source for GgezFileSystem {
         events: EventSender,
     ) -> Result<(), assets_manager::BoxedError> {
         let mut watcher = FsWatcherBuilder::new()?;
-        if let Some(res) = &self.resources {
-            watcher.watch(res.root().to_owned())?;
-        }
-        if let Some(res) = &self.local {
-            watcher.watch(res.root().to_owned())?;
-        }
-        if let Some(res) = &self.config {
-            watcher.watch(res.root().to_owned())?;
-        }
+        let _ = watcher.watch(self.fs.resources_dir().to_owned());
+        let _ = watcher.watch(self.fs.user_data_dir().to_owned());
+        let _ = watcher.watch(self.fs.user_config_dir().to_owned());
         watcher.build(events);
         Ok(())
     }

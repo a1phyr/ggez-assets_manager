@@ -20,17 +20,6 @@ mod seal {
 ///
 /// `game_id` and `author` parameters should be the same as thoses given to
 /// [`ggez::ContextBuilder::new`].
-#[must_use]
-#[deprecated = "use `create_asset_cache` instead"]
-#[allow(deprecated)]
-pub fn new_asset_cache(game_id: &str, author: &str) -> AssetCache {
-    AssetCache::with_source(GgezFileSystem::new(game_id, author))
-}
-
-/// Creates a new `AssetCache` backed by a [`GgezFileSystem`].
-///
-/// `game_id` and `author` parameters should be the same as thoses given to
-/// [`ggez::ContextBuilder::new`].
 ///
 /// Note that resources added via `ContextBuilder::add_resource_path` or
 /// `ContextBuilder::add_zip_file` are not supported at the moment.
@@ -81,7 +70,7 @@ pub trait AssetCacheExt: seal::Sealed {
     /// Returns a `ReloadWatcher` to watch changes of an asset.
     ///
     /// Returns `None` if the asset is not in the cache.
-    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
+    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher<'_>>
     where
         T: GgezAsset;
 
@@ -123,7 +112,7 @@ impl AssetCacheExt for AssetCache {
         }
     }
 
-    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher>
+    fn ggez_reload_watcher<T>(&self, id: &str) -> Option<ReloadWatcher<'_>>
     where
         T: GgezAsset,
     {
