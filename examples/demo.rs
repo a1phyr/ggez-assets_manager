@@ -22,7 +22,7 @@ struct MainState {
 impl MainState {
     fn new(ctx: &ggez::Context) -> Self {
         Self {
-            cache: ggez_assets_manager::create_asset_cache(ctx),
+            cache: ggez_assets_manager::new_asset_cache(ctx),
         }
     }
 }
@@ -36,7 +36,7 @@ impl event::EventHandler for MainState {
         self.cache.set_font(ctx, FONT_NAME, "fonts.DejaVuSans")?;
         let img = self
             .cache
-            .ggez_load::<graphics::Image>(ctx, "images.ferris")?;
+            .ggez_load_clone::<graphics::Image>(ctx, "images.ferris")?;
 
         let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
@@ -65,8 +65,11 @@ impl event::EventHandler for MainState {
         repeated: bool,
     ) -> GameResult<()> {
         if input.event.physical_key == ggez::input::keyboard::KeyCode::Space && !repeated {
-            match self.cache.ggez_load::<audio::Source>(ctx, "audio.on_key") {
-                Ok(source) => source.play_detached(),
+            match self
+                .cache
+                .ggez_load_init::<audio::Source>(ctx, "audio.on_key")
+            {
+                Ok(source) => source.play(),
                 Err(err) => {
                     static LOGGED: std::sync::Once = std::sync::Once::new();
                     LOGGED.call_once(|| log::error!("Failed to load sound: {}", err));
