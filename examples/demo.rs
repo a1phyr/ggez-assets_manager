@@ -1,6 +1,7 @@
 use ggez::{
+    GameResult,
     audio::{self, SoundSource},
-    event, graphics, GameResult,
+    event, graphics,
 };
 use ggez_assets_manager::AssetCacheExt;
 
