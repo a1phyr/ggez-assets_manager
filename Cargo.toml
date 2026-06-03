@@ -21,7 +21,7 @@ hot-reloading = ["assets_manager/hot-reloading"]
 
 [dependencies]
 assets_manager = { version = "0.13.1", default-features = false, features = ["utils"] }
-ggez = { version = "=0.10.0-rc0", default-features = false, features = ["audio", "gamepad"] }
+ggez = { version = "0.10.0", default-features = false, features = ["audio", "gamepad"] }
 
 log = "0.4"
 
